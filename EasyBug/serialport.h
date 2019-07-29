@@ -1,0 +1,39 @@
+#ifndef SERIALPORT_H
+#define SERIALPORT_H
+
+#include <QtSerialPort/QSerialPort>
+#include <QtSerialPort/QSerialPortInfo>
+
+#include <QObject>
+
+#include <QTimer>
+
+#include <QDebug>
+
+class SerialPort : public QSerialPort
+{
+    Q_OBJECT
+public:
+    SerialPort(QSerialPort * parent = nullptr);
+
+
+public:
+    bool startBind(qint32 baud, QString port);
+    void closePort();
+
+
+private slots:
+    void loadData();
+    void searchPort();
+
+signals:
+    void hasGetData(const QByteArray data);
+    void hasNewPort(const QStringList portlist);
+
+private:
+    QTimer m_timer; //通过定时器来实时扫描端口号
+    QStringList m_portList;
+
+};
+
+#endif // SERIALPORT_H
