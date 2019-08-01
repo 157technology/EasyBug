@@ -1,7 +1,11 @@
 #include "serialport.h"
+#include "QThread"
 
 SerialPort::SerialPort(QSerialPort * parent) : QSerialPort (parent)
 {
+
+    qDebug() << "Serial: " << QThread::currentThread();
+    qDebug() << "Serial Timer(init): " << m_timer.thread();
     this->m_portList.clear();
     connect(&this->m_timer, &QTimer::timeout, this, &SerialPort::searchPort);
     this->m_timer.start(500);
@@ -9,7 +13,7 @@ SerialPort::SerialPort(QSerialPort * parent) : QSerialPort (parent)
 }
 
 
-bool SerialPort::startBind(qint32 baud, QString port)
+void SerialPort::startBind(qint32 baud, QString port)
 {
     this->setDataBits(QSerialPort::Data8);
     this->setParity(QSerialPort::NoParity);
@@ -18,19 +22,20 @@ bool SerialPort::startBind(qint32 baud, QString port)
     this->setBaudRate(baud);
     this->setPortName(port);
 
-    this->open(QIODevice::ReadOnly);
+    this->open(QIODevice::ReadWrite);
 
     if ( this->isOpen() )
     {
+        qDebug() << "Serial Bind: " << QThread::currentThread();
         this->m_timer.stop();
         disconnect(&this->m_timer, &QTimer::timeout, this, &SerialPort::searchPort);
         connect(this, &QIODevice::readyRead, this, &SerialPort::loadData);
-        return true;
+        //return true;
     }
     else
     {
         qDebug() << "open port " << port << ".FALSE";
-        return false;
+        //return false;
     }
 }
 
@@ -49,6 +54,9 @@ void SerialPort::closePort()
 void SerialPort::searchPort()
 {
     QStringList strlist;
+
+    qDebug() << "Serial Timer: " << QThread::currentThread();
+    qDebug() << "Serial Timer-timer: " << m_timer.thread();
     foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts())
     {
         QSerialPort serial;
@@ -69,5 +77,6 @@ void SerialPort::searchPort()
 static QByteArray serialBuf;
 void SerialPort::loadData()
 {
+    qDebug() << "Serial Rec: " << QThread::currentThread();
     emit hasGetData(this->readAll());
 }

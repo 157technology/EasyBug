@@ -10,29 +10,39 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 
 
-    m_communicate = new Communicate;
+    //m_communicate = new Communicate;
 
-    connect(m_communicate->tcpServer, &TcpServer::hasAlterLink, this, &MainWindow::alterLink); // when link change
-    connect(this, &MainWindow::stopServer, m_communicate->tcpServer, &TcpServer::stopServer);  // start server
-    connect(this, &MainWindow::startServer, m_communicate->tcpServer, &TcpServer::startServer);// stop server
+    //connect(m_communicate->tcpServer, &TcpServer::hasAlterLink, this, &MainWindow::alterLink); // when link change
+    //connect(this, &MainWindow::stopServer, m_communicate->tcpServer, &TcpServer::stopServer);  // start server
+    //connect(this, &MainWindow::startServer, m_communicate->tcpServer, &TcpServer::startServer);// stop server
+    qDebug() << "MainWindow Thread: " << QThread::currentThread();
 
+    m_serial = new SerialPort;
 
+    QThread * thread = new QThread(m_serial);
 
+    // move to a thread
+    m_serial->moveToThread(thread);
+    m_serial->m_timer.moveToThread(thread);
+    thread->start();
 
-    connect(this->m_communicate->serial, &SerialPort::hasNewPort, this, &MainWindow::alterPorts);
+    connect(this, &MainWindow::startSerial, m_serial, &SerialPort::startBind);
+    connect(this, &MainWindow::stopSeial, m_serial, &SerialPort::closePort);
+    connect(m_serial, &SerialPort::hasNewPort, this, &MainWindow::alterPorts);
+    connect(m_serial, &SerialPort::hasGetData, this, &MainWindow::showSerialData);
 
-    connect(this->m_communicate, &Communicate::hasPlotData, this, &MainWindow::exePlot);
-    connect(this->m_communicate->tcpServer, &TcpServer::hasGetData, this, &MainWindow::showData);
-    qDebug("connect ok");
+    //connect(this->m_communicate->serial, &SerialPort::hasNewPort, this, &MainWindow::alterPorts);
+
+    //connect(this->m_communicate, &Communicate::hasPlotData, this, &MainWindow::exePlot);
+    //connect(this->m_communicate->tcpServer, &TcpServer::hasGetData, this, &MainWindow::showData);
+    //qDebug("connect ok");
     //connect(m_serial, &SerialPort::hasGetData, this, &MainWindow::serialData);
 
 
 
    // m_server->startServer(BROADCAST, 2222);                                    // init start server
 
-    QThread * thread = new QThread(m_server);                                  // move to a thread
-    m_communicate->tcpServer->moveToThread(thread);
-    thread->start();
+
 
 
 
@@ -52,6 +62,12 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+
+void MainWindow::showSerialData(const QByteArray buf)
+{
+    ui->TB_Serialshow->insertPlainText(QString::fromLocal8Bit(buf));
+}
+
 void MainWindow::alterPorts(QStringList ports)
 {
     qDebug() << "ports change";
@@ -59,31 +75,9 @@ void MainWindow::alterPorts(QStringList ports)
     ui->CB_Serial->addItems(ports);
 
     //
-    m_communicate->serial->startBind(115200, ports.at(0));
+    //m_communicate->serial->startBind(115200, ports.at(0));
 }
 
-void MainWindow::exePlot(QMap<QString, double> data)
-{
-    static QMap<QString, int> m_data;
-    static int index = 0;
-    static double t = 0;
-    for ( auto it = data.begin(); it != data.end(); it ++ )
-    {
-        if ( m_data.contains(it.key()) == false )
-        {
-            qDebug() << it.key();
-            m_data.insert(it.key(), index ++);
-            ui->plot->addGraph();
-            QColor color(0+200/10.0*index,70*(1.6-index/8.0), 150, 150);
-            ui->plot->graph()->setPen(QPen(color));
-        }
-
-
-        ui->plot->graph(m_data.value(it.key()))->addData(t, it.value());
-    }
-    t += 0.02;
-    ui->plot->replot();
-}
 
 void MainWindow::showData(const QByteArray buf)
 {
@@ -97,10 +91,10 @@ void MainWindow::alterLink(QStringList iplist)
 
 
 
-
+/* TCP */
 void MainWindow::on_PB_TCPopen_clicked()
 {
-    emit startServer("0.0.0.0", 3333);
+    //emit startServer("0.0.0.0", 3333);
 }
 
 void MainWindow::on_PB_ClearTCPshow_clicked()
@@ -115,7 +109,24 @@ void MainWindow::on_PB_ClearTCPinput_clicked()
 
 void MainWindow::on_PB_TCPsend_clicked()
 {
-    m_communicate->tcpServer->m_sendData(ui->TE_TCPedit->toPlainText().toLocal8Bit(), "0.0.0.0");
+    //m_communicate->tcpServer->m_sendData(ui->TE_TCPedit->toPlainText().toLocal8Bit(), "0.0.0.0");
 }
 
 
+/* Serial */
+void MainWindow::on_PB_Serialopen_clicked()
+{
+    emit startSerial(115200, ui->CB_Serial->currentText());
+}
+
+
+
+void MainWindow::on_PB_ClearSerialshow_clicked()
+{
+    ui->TB_Serialshow->clear();
+}
+
+void MainWindow::on_PB_ClearSerialinput_clicked()
+{
+    ui->TE_Serialedit->clear();
+}

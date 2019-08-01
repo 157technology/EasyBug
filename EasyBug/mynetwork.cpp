@@ -159,7 +159,7 @@ void UdpServer::recvData()
     QByteArray arr;
     while ( this->hasPendingDatagrams() )
     {
-        arr.resize((pendingDatagramSize()));
+        arr.resize(qint32(pendingDatagramSize()));
         this->readDatagram(arr.data(), arr.size());
     }
     qDebug() << arr;

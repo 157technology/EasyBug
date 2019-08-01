@@ -16,11 +16,9 @@ class SerialPort : public QSerialPort
 public:
     SerialPort(QSerialPort * parent = nullptr);
 
-
-public:
-    bool startBind(qint32 baud, QString port);
+public slots:
+    void startBind(qint32 baud, QString port);
     void closePort();
-
 
 private slots:
     void loadData();
@@ -30,10 +28,12 @@ signals:
     void hasGetData(const QByteArray data);
     void hasNewPort(const QStringList portlist);
 
-private:
-    QTimer m_timer; //通过定时器来实时扫描端口号
-    QStringList m_portList;
 
+public:
+    QTimer m_timer; //通过定时器来实时扫描端口号
+
+private:
+    QStringList m_portList;
 };
 
 #endif // SERIALPORT_H

@@ -21,8 +21,8 @@ public:
     ~MainWindow();
 
 public slots:
-    void exePlot(QMap<QString, double> data);
     void showData(const QByteArray buf);
+    void showSerialData(const QByteArray buf);
 
 private slots:
     void alterLink(QStringList iplist);
@@ -30,20 +30,25 @@ private slots:
 
 
     void on_PB_TCPopen_clicked();
-
     void on_PB_ClearTCPshow_clicked();
-
     void on_PB_TCPsend_clicked();
-
     void on_PB_ClearTCPinput_clicked();
 
+    void on_PB_Serialopen_clicked();
+    void on_PB_ClearSerialinput_clicked();
+    void on_PB_ClearSerialshow_clicked();
+
 signals:
+    void startSerial(qint32 baud, QString port);
+    void stopSeial();
+
     void startServer(const QString ip, const int port);
     void stopServer();
 
 private:
     Ui::MainWindow * ui;
     QTcpServer * m_server;
+    SerialPort * m_serial;
 
 public:
     Communicate * m_communicate;

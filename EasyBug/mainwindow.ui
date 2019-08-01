@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1054</width>
-    <height>675</height>
+    <height>788</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,9 +29,24 @@
        <attribute name="title">
         <string>TCP~UART</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_7">
+       <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="1,1">
+        <property name="spacing">
+         <number>3</number>
+        </property>
+        <property name="leftMargin">
+         <number>6</number>
+        </property>
+        <property name="topMargin">
+         <number>6</number>
+        </property>
+        <property name="rightMargin">
+         <number>6</number>
+        </property>
+        <property name="bottomMargin">
+         <number>6</number>
+        </property>
         <item>
-         <layout class="QVBoxLayout" name="verticalLayout_3" stretch="10,1,3">
+         <layout class="QVBoxLayout" name="verticalLayout_3" stretch="12,1,3">
           <item>
            <widget class="QTextBrowser" name="TB_TCPshow">
             <property name="font">
@@ -104,14 +119,27 @@
          </layout>
         </item>
         <item>
-         <layout class="QVBoxLayout" name="verticalLayout_4" stretch="10,1,3">
+         <layout class="QVBoxLayout" name="verticalLayout_4" stretch="12,1,3">
           <item>
            <widget class="QTextBrowser" name="TB_Serialshow"/>
           </item>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
-             <widget class="QLineEdit" name="LE_Serialbaud"/>
+             <widget class="QLineEdit" name="LE_Serialbaud">
+              <property name="inputMask">
+               <string/>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="frame">
+               <bool>true</bool>
+              </property>
+              <property name="placeholderText">
+               <string extracomment="baud">115200</string>
+              </property>
+             </widget>
             </item>
             <item>
              <widget class="QComboBox" name="CB_Serial"/>
@@ -124,14 +152,14 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="PB_ClearSerialinput">
+             <widget class="QPushButton" name="PB_ClearSerialshow">
               <property name="text">
                <string>clear</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="PB_ClearSerialshow">
+             <widget class="QPushButton" name="PB_ClearSerialinput">
               <property name="text">
                <string>clear</string>
               </property>
