@@ -1,6 +1,8 @@
 #include "serialport.h"
 #include "QThread"
 
+extern int is_serial_open;
+
 SerialPort::SerialPort(QSerialPort * parent) : QSerialPort (parent)
 {
 
@@ -31,11 +33,13 @@ void SerialPort::startBind(qint32 baud, QString port)
         disconnect(&this->m_timer, &QTimer::timeout, this, &SerialPort::searchPort);
         connect(this, &QIODevice::readyRead, this, &SerialPort::loadData);
         //return true;
+        is_serial_open = 1;
     }
     else
     {
         qDebug() << "open port " << port << ".FALSE";
         //return false;
+        is_serial_open = -1;
     }
 }
 
@@ -46,9 +50,15 @@ void SerialPort::closePort()
         disconnect(this, &QIODevice::readyRead, this, &SerialPort::loadData);
         this->close();
 
+
         connect(&this->m_timer, &QTimer::timeout, this, &SerialPort::searchPort);
         this->m_timer.start(1000);
     }
+
+    if ( this->isOpen() )
+        is_serial_open = 1;
+    else
+        is_serial_open = -1;
 }
 
 void SerialPort::searchPort()
@@ -74,9 +84,14 @@ void SerialPort::searchPort()
     }
 }
 
-static QByteArray serialBuf;
+
 void SerialPort::loadData()
 {
     qDebug() << "Serial Rec: " << QThread::currentThread();
     emit hasGetData(this->readAll());
+}
+
+void SerialPort::sendData(QByteArray data)
+{
+    this->write(data);
 }

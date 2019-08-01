@@ -22,7 +22,9 @@ public:
 
 public slots:
     void showData(const QByteArray buf);
+
     void showSerialData(const QByteArray buf);
+
 
 private slots:
     void alterLink(QStringList iplist);
@@ -38,9 +40,12 @@ private slots:
     void on_PB_ClearSerialinput_clicked();
     void on_PB_ClearSerialshow_clicked();
 
+    void on_PB_Seralsend_clicked();
+
 signals:
     void startSerial(qint32 baud, QString port);
     void stopSeial();
+    void sendSerial(const QByteArray buf);
 
     void startServer(const QString ip, const int port);
     void stopServer();

@@ -2,6 +2,8 @@
 #include "ui_mainwindow.h"
 
 
+int is_serial_open;
+int is_tcp_open;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -26,8 +28,11 @@ MainWindow::MainWindow(QWidget *parent) :
     m_serial->m_timer.moveToThread(thread);
     thread->start();
 
+
+
     connect(this, &MainWindow::startSerial, m_serial, &SerialPort::startBind);
     connect(this, &MainWindow::stopSeial, m_serial, &SerialPort::closePort);
+    connect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
     connect(m_serial, &SerialPort::hasNewPort, this, &MainWindow::alterPorts);
     connect(m_serial, &SerialPort::hasGetData, this, &MainWindow::showSerialData);
 
@@ -116,7 +121,59 @@ void MainWindow::on_PB_TCPsend_clicked()
 /* Serial */
 void MainWindow::on_PB_Serialopen_clicked()
 {
-    emit startSerial(115200, ui->CB_Serial->currentText());
+    static bool flag = false;
+    is_serial_open = 0;
+    if ( flag == false )
+    {
+        emit startSerial(115200, ui->CB_Serial->currentText());
+    }
+    else
+    {
+        emit stopSeial();
+    }
+
+    while ( is_serial_open == 0 )
+    {
+        qDebug() << "Wait to open Serial";
+        this->thread()->msleep(1);
+    }
+
+
+
+    if ( flag == false )
+    {
+        if ( is_serial_open == 1 )
+        {
+            qDebug() << "Serial Open Success";
+            flag = true;
+            ui->PB_Serialopen->setText("stop");
+
+            ui->CB_Serial->setEnabled(false);
+            ui->LE_Serialbaud->setEnabled(false);
+        }
+        else
+        {
+            qDebug() << "Serial Open False";
+        }
+    }
+    else
+    {
+        if ( is_serial_open == -1 )
+        {
+            qDebug() << "Serial close Success";
+            flag = false;
+            ui->PB_Serialopen->setText("start");
+            ui->CB_Serial->setEnabled(true);
+            ui->LE_Serialbaud->setEnabled(true);
+        }
+        else
+        {
+            qDebug() << "Serial Open False";
+        }
+    }
+
+
+
 }
 
 
@@ -129,4 +186,9 @@ void MainWindow::on_PB_ClearSerialshow_clicked()
 void MainWindow::on_PB_ClearSerialinput_clicked()
 {
     ui->TE_Serialedit->clear();
+}
+
+void MainWindow::on_PB_Seralsend_clicked()
+{
+    emit sendSerial(ui->TE_Serialedit->toPlainText().toLocal8Bit());
 }

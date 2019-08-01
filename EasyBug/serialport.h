@@ -19,6 +19,7 @@ public:
 public slots:
     void startBind(qint32 baud, QString port);
     void closePort();
+    void sendData(QByteArray data);
 
 private slots:
     void loadData();
