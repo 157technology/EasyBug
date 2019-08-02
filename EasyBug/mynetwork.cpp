@@ -56,6 +56,7 @@ void TcpSocket::closeSocket(QString ip)
 TcpServer::TcpServer(QTcpServer * parent) : QTcpServer (parent)
 {
     m_map.clear();
+    qDebug() << "TcpServer Init: " << QThread::currentThread();
 }
 
 TcpServer::~TcpServer()

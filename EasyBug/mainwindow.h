@@ -21,7 +21,7 @@ public:
     ~MainWindow();
 
 public slots:
-    void showData(const QByteArray buf);
+    void showTcpData(const QByteArray buf);
 
     void showSerialData(const QByteArray buf);
 
@@ -47,12 +47,12 @@ signals:
     void stopSeial();
     void sendSerial(const QByteArray buf);
 
-    void startServer(const QString ip, const int port);
-    void stopServer();
+    void startTcpServer(const QString ip, const int port);
+    void stopTcpServer();
 
 private:
     Ui::MainWindow * ui;
-    QTcpServer * m_server;
+    TcpServer * m_tcp_server;
     SerialPort * m_serial;
 
 public:

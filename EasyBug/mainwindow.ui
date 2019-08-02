@@ -93,6 +93,9 @@
              <layout class="QVBoxLayout" name="verticalLayout_2">
               <item>
                <widget class="QPushButton" name="PB_TCPsend">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
                 <property name="text">
                  <string>Send</string>
                 </property>
@@ -176,6 +179,9 @@
              <layout class="QVBoxLayout" name="verticalLayout">
               <item>
                <widget class="QPushButton" name="PB_Seralsend">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
                 <property name="text">
                  <string>Send</string>
                 </property>

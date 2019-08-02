@@ -20,21 +20,34 @@ MainWindow::MainWindow(QWidget *parent) :
     qDebug() << "MainWindow Thread: " << QThread::currentThread();
 
     m_serial = new SerialPort;
+    m_tcp_server = new TcpServer;
 
-    QThread * thread = new QThread(m_serial);
+    QThread * thread_serial = new QThread(m_serial);
+
+    QThread * thread_tcp_server = new QThread(m_tcp_server);
 
     // move to a thread
-    m_serial->moveToThread(thread);
-    m_serial->m_timer.moveToThread(thread);
-    thread->start();
+    m_serial->moveToThread(thread_serial);
+    m_serial->m_timer.moveToThread(thread_serial);
+    thread_serial->start();
+
+    m_tcp_server->moveToThread(thread_tcp_server);
+    thread_tcp_server->start();
 
 
 
+    /* about serial */
     connect(this, &MainWindow::startSerial, m_serial, &SerialPort::startBind);
     connect(this, &MainWindow::stopSeial, m_serial, &SerialPort::closePort);
     connect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
     connect(m_serial, &SerialPort::hasNewPort, this, &MainWindow::alterPorts);
     connect(m_serial, &SerialPort::hasGetData, this, &MainWindow::showSerialData);
+
+
+    /* about tcp server */
+    connect(this, &MainWindow::startTcpServer, m_tcp_server, &TcpServer::startServer);
+    connect(this, &MainWindow::stopTcpServer, m_tcp_server, &TcpServer::stopServer);
+    connect(m_tcp_server, &TcpServer::hasGetData, this, &MainWindow::showTcpData);
 
     //connect(this->m_communicate->serial, &SerialPort::hasNewPort, this, &MainWindow::alterPorts);
 
@@ -84,9 +97,9 @@ void MainWindow::alterPorts(QStringList ports)
 }
 
 
-void MainWindow::showData(const QByteArray buf)
+void MainWindow::showTcpData(const QByteArray buf)
 {
-    ui->TB_TCPshow->append(QString::fromLocal8Bit(buf));
+    ui->TB_TCPshow->insertPlainText(QString::fromLocal8Bit(buf));
 }
 
 void MainWindow::alterLink(QStringList iplist)
@@ -99,7 +112,7 @@ void MainWindow::alterLink(QStringList iplist)
 /* TCP */
 void MainWindow::on_PB_TCPopen_clicked()
 {
-    //emit startServer("0.0.0.0", 3333);
+    emit startTcpServer("0.0.0.0", 3333);
 }
 
 void MainWindow::on_PB_ClearTCPshow_clicked()
@@ -150,6 +163,7 @@ void MainWindow::on_PB_Serialopen_clicked()
 
             ui->CB_Serial->setEnabled(false);
             ui->LE_Serialbaud->setEnabled(false);
+            ui->PB_Seralsend->setEnabled(true);
         }
         else
         {
@@ -165,6 +179,7 @@ void MainWindow::on_PB_Serialopen_clicked()
             ui->PB_Serialopen->setText("start");
             ui->CB_Serial->setEnabled(true);
             ui->LE_Serialbaud->setEnabled(true);
+            ui->PB_Seralsend->setEnabled(false);
         }
         else
         {
