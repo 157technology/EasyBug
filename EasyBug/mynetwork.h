@@ -21,8 +21,11 @@ public:
     TcpSocket(qintptr socketdesc, QTcpSocket * parent = nullptr);
 
 public slots:
-    void sendData(QByteArray data, QString ip);
+    void sendData(QByteArray data, QString ip = "0.0.0.0");
+    void sendClienData(QByteArray buf);
     void closeSocket(QString ip);
+    void startClient(const QString ip, const int port);
+    void closeClient();
 
 private slots:
     void recvData();
@@ -50,6 +53,7 @@ protected:
 
 public slots:
     void startServer(const QString ip = BROADCAST, const int port = 2222);
+    void sendData(QByteArray buf);
     void stopServer();
 
 signals:

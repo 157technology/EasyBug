@@ -27,6 +27,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 CONFIG += c++11
 
 SOURCES += \
+    axistag.cpp \
         main.cpp \
         mainwindow.cpp \
     mynetwork.cpp \
@@ -35,6 +36,7 @@ SOURCES += \
     communicate.cpp
 
 HEADERS += \
+    axistag.h \
         mainwindow.h \
     mynetwork.h \
     qcustomplot.h \

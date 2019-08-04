@@ -19,12 +19,26 @@ MainWindow::MainWindow(QWidget *parent) :
     //connect(this, &MainWindow::startServer, m_communicate->tcpServer, &TcpServer::startServer);// stop server
     qDebug() << "MainWindow Thread: " << QThread::currentThread();
 
+    m_net_mode_list = new QStringList({"Tcp Server","Tcp Client","Udp Server","Tcp Client"});
+
+    /*
+    ui->CB_TCPMode->addItem("Tcp Server");
+    ui->CB_TCPMode->addItem("Tcp Client");
+    ui->CB_TCPMode->addItem("Udp Server");
+    ui->CB_TCPMode->addItem("Tcp Client");
+    */
+
+    ui->CB_TCPMode->addItems(*m_net_mode_list);
+
     m_serial = new SerialPort;
     m_tcp_server = new TcpServer;
+    m_tcp_client = new TcpSocket(0);
+
+    m_tcp_client->abort();
 
     QThread * thread_serial = new QThread(m_serial);
-
     QThread * thread_tcp_server = new QThread(m_tcp_server);
+    QThread * thread_tcp_client = new QThread(m_tcp_client);
 
     // move to a thread
     m_serial->moveToThread(thread_serial);
@@ -33,6 +47,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_tcp_server->moveToThread(thread_tcp_server);
     thread_tcp_server->start();
+
+    m_tcp_client->moveToThread(thread_tcp_client);
+    thread_tcp_client->start();
 
 
 
@@ -45,9 +62,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     /* about tcp server */
-    connect(this, &MainWindow::startTcpServer, m_tcp_server, &TcpServer::startServer);
-    connect(this, &MainWindow::stopTcpServer, m_tcp_server, &TcpServer::stopServer);
-    connect(m_tcp_server, &TcpServer::hasGetData, this, &MainWindow::showTcpData);
+
 
     //connect(this->m_communicate->serial, &SerialPort::hasNewPort, this, &MainWindow::alterPorts);
 
@@ -70,9 +85,35 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     // set some basic customPlot config:
+    mPlot = ui->plot;
+    mPlot->yAxis->setTickLabels(false);
+    connect(mPlot->yAxis2, SIGNAL(rangeChanged(QCPRange)), mPlot->yAxis, SLOT(setRange(QCPRange))); // left axis only mirrors inner right axis
+    mPlot->yAxis2->setVisible(true);
+    mPlot->yAxis2->setRange(-10, 10);
+    mPlot->axisRect()->addAxis(QCPAxis::atRight);
+    mPlot->axisRect()->axis(QCPAxis::atRight, 0)->setPadding(30); // add some padding to have space for tags
+    mPlot->axisRect()->axis(QCPAxis::atRight, 1)->setPadding(30); // add some padding to have space for tags
+    mGraph1 = mPlot->addGraph(mPlot->xAxis, mPlot->axisRect()->axis(QCPAxis::atRight, 0));
+    mGraph2 = mPlot->addGraph(mPlot->xAxis, mPlot->axisRect()->axis(QCPAxis::atRight, 1));
+
+    mPlot->axisRect()->axis(QCPAxis::atRight,0)->setRange(-5, 5);
+    mPlot->axisRect()->axis(QCPAxis::atRight,1)->setRange(-5, 5);
+
+    mGraph1->setPen(QPen(QColor(250, 120, 0)));
+    mGraph2->setPen(QPen(QColor(0, 180, 60)));
+
+    mTag1 = new AxisTag(mGraph1->valueAxis());
+    mTag1->setPen(mGraph1->pen());
+    mTag2 = new AxisTag(mGraph2->valueAxis());
+    mTag2->setPen(mGraph2->pen());
+
     ui->plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom |  QCP::iSelectPlottables);
     ui->plot->axisRect()->setupFullAxesBox();
     ui->plot->rescaleAxes();
+
+
+    connect(&mDataTimer, SIGNAL(timeout()), this, SLOT(timerSlot()));
+    mDataTimer.start(40);
 }
 
 MainWindow::~MainWindow()
@@ -80,6 +121,28 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::timerSlot()
+{
+  // calculate and add a new data point to each graph:
+  mGraph1->addData(mGraph1->dataCount(), qSin(mGraph1->dataCount()/50.0)+qSin(mGraph1->dataCount()/50.0/0.3843)*0.25);
+  mGraph2->addData(mGraph2->dataCount(), qCos(mGraph2->dataCount()/50.0)+qSin(mGraph2->dataCount()/50.0/0.4364)*0.15);
+
+  // make key axis range scroll with the data:
+  mPlot->xAxis->rescale();
+  //mGraph1->rescaleValueAxis(false, true);
+  //mGraph2->rescaleValueAxis(false, true);
+  mPlot->xAxis->setRange(mPlot->xAxis->range().upper, 1200, Qt::AlignRight);
+
+  // update the vertical axis tag positions and texts to match the rightmost data point of the graphs:
+  double graph1Value = mGraph1->dataMainValue(mGraph1->dataCount()-1);
+  double graph2Value = mGraph2->dataMainValue(mGraph2->dataCount()-1);
+  mTag1->updatePosition(graph1Value);
+  mTag2->updatePosition(graph2Value);
+  mTag1->setText(QString::number(graph1Value, 'f', 2));
+  mTag2->setText(QString::number(graph2Value, 'f', 2));
+
+  mPlot->replot();
+}
 
 void MainWindow::showSerialData(const QByteArray buf)
 {
@@ -104,7 +167,10 @@ void MainWindow::showTcpData(const QByteArray buf)
 
 void MainWindow::alterLink(QStringList iplist)
 {
-    qDebug() << iplist;
+    qDebug() << ">>> main: " << iplist;
+    ui->CB_TCPMode->setEnabled(true);
+    ui->CB_TCPMode->clear();
+    ui->CB_TCPMode->addItems(iplist);
 }
 
 
@@ -112,7 +178,143 @@ void MainWindow::alterLink(QStringList iplist)
 /* TCP */
 void MainWindow::on_PB_TCPopen_clicked()
 {
-    emit startTcpServer("0.0.0.0", 3333);
+    static bool flag = false;
+    static int state;
+
+    is_tcp_open = 0;
+
+    if ( flag == false )
+    {
+        state = ui->CB_TCPMode->currentIndex();
+        switch (state)
+        {
+        case 0:
+            connect(this, &MainWindow::startTcpServer, m_tcp_server, &TcpServer::startServer);
+            emit startTcpServer("0.0.0.0", 3333);
+            while ( is_tcp_open == 0 )
+            {
+                this->thread()->msleep(5);
+            }
+            if ( is_tcp_open == 1 )
+            {
+                flag = true;
+                connect(this, &MainWindow::stopTcpServer, m_tcp_server, &TcpServer::stopServer);
+                connect(this, &MainWindow::sendTcpData, m_tcp_server, &TcpServer::sendData);
+                connect(m_tcp_server, &TcpServer::hasGetData, this, &MainWindow::showTcpData);
+                connect(m_tcp_server, &TcpServer::hasAlterLink, this, &MainWindow::alterLink);
+            }
+            else
+            {
+                qDebug() << "start tcp server faild";
+            }
+            break;
+        case 1:
+            connect(this, &MainWindow::startTcpServer, m_tcp_client, &TcpSocket::startClient);
+            emit startTcpServer("169.254.138.220", 3333);
+            while ( is_tcp_open == 0 )
+            {
+                this->thread()->msleep(5);
+            }
+            if ( is_tcp_open == 1 )
+            {
+                connect(this, &MainWindow::stopTcpServer, m_tcp_client, &TcpSocket::closeClient);
+                connect(this, &MainWindow::sendTcpData, m_tcp_client, &TcpSocket::sendClienData);
+                connect(m_tcp_client, &TcpSocket::hasGetData, this, &MainWindow::showTcpData);
+
+                qDebug() << "connect success thread->" << QThread::currentThread();
+                flag = true;
+            }
+            else
+            {
+                qDebug() << "connect failed thread->" << QThread::currentThread();
+            }
+
+            break;
+        case 2:
+            break;
+        case 3:
+            break;
+        default:
+            break;
+        }
+
+        if ( flag == true )
+        {
+            ui->CB_TCPMode->setEnabled(false);
+            ui->PB_TCPsend->setEnabled(true);
+            ui->PB_TCPopen->setText("stop");
+        }
+    }
+    else
+    {
+        switch (state)
+        {
+        case 0:
+            emit stopTcpServer();
+            while ( is_tcp_open == 0 )
+            {
+                this->thread()->msleep(5);
+            }
+            if ( is_tcp_open == -1 )
+            {
+                flag = false;
+                disconnect(this, &MainWindow::sendTcpData, m_tcp_server, &TcpServer::sendData);
+                disconnect(this, &MainWindow::startTcpServer, m_tcp_server, &TcpServer::startServer);
+                disconnect(this, &MainWindow::stopTcpServer, m_tcp_server, &TcpServer::stopServer);
+                disconnect(m_tcp_server, &TcpServer::hasGetData, this, &MainWindow::showTcpData);
+                disconnect(m_tcp_server, &TcpServer::hasAlterLink, this, &MainWindow::alterLink);
+                qDebug() << "stop tcp server:thread->" << this->thread()->currentThread();
+            }
+            else
+            {
+                qDebug() << "stop tcp server faild";
+            }
+
+            break;
+
+        case 1:
+            emit stopTcpServer();
+            while ( is_tcp_open == 0 )
+            {
+                this->thread()->msleep(5);
+            }
+            if ( is_tcp_open == -1 )
+            {
+                flag = false;
+                disconnect(this, &MainWindow::startTcpServer, m_tcp_client, &TcpSocket::startClient);
+                disconnect(this, &MainWindow::sendTcpData, m_tcp_client, &TcpSocket::sendClienData);
+                disconnect(m_tcp_client, &TcpSocket::hasGetData, this, &MainWindow::showTcpData);
+
+                qDebug() << "stop tcp client:thread->" << this->thread()->currentThread();
+            }
+            else
+            {
+                qDebug() << "stop tcp client faild";
+            }
+
+            break;
+
+        case 2:
+            break;
+
+        case 3:
+            break;
+
+        default:
+
+            break;
+        }
+
+        if ( flag == false )
+        {
+            ui->CB_TCPMode->setEnabled(true);
+            ui->CB_TCPMode->clear();
+            ui->CB_TCPMode->addItems(*m_net_mode_list);
+            ui->CB_TCPMode->setCurrentIndex(state);
+            ui->PB_TCPsend->setEnabled(true);
+            ui->PB_TCPopen->setText("start");
+        }
+    }
 }
 
 void MainWindow::on_PB_ClearTCPshow_clicked()
@@ -128,6 +330,7 @@ void MainWindow::on_PB_ClearTCPinput_clicked()
 void MainWindow::on_PB_TCPsend_clicked()
 {
     //m_communicate->tcpServer->m_sendData(ui->TE_TCPedit->toPlainText().toLocal8Bit(), "0.0.0.0");
+    emit sendTcpData(ui->TE_TCPedit->toPlainText().toLocal8Bit());
 }
 
 

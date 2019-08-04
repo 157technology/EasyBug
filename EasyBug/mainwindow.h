@@ -5,6 +5,8 @@
 
 #include <communicate.h>
 
+#include "axistag.h"
+#include "mynetwork.h"
 #include "qcustomplot.h"
 #include "QTimer"
 
@@ -49,12 +51,26 @@ signals:
 
     void startTcpServer(const QString ip, const int port);
     void stopTcpServer();
+    void sendTcpData(const QByteArray buf);
+
+private slots:
+  void timerSlot();
 
 private:
     Ui::MainWindow * ui;
+
+    TcpSocket * m_tcp_client;
     TcpServer * m_tcp_server;
     SerialPort * m_serial;
 
+    QStringList * m_net_mode_list;
+
+    QCustomPlot *mPlot;
+    QPointer<QCPGraph> mGraph1;
+    QPointer<QCPGraph> mGraph2;
+    AxisTag *mTag1;
+    AxisTag *mTag2;
+    QTimer mDataTimer;
 public:
     Communicate * m_communicate;
 };

@@ -1,11 +1,18 @@
 #include "mynetwork.h"
 
+
+extern int is_tcp_open;
+
 /* about tcp socket */
 /* init socket and connect socket io */
 TcpSocket::TcpSocket(qintptr sock, QTcpSocket * parent) : QTcpSocket (parent)
 {
-    setSocketDescriptor(sock);
-    m_remoteIp = peerAddress().toString().remove(QString("::ffff:"));
+    if ( sock != 0 )
+    {
+        setSocketDescriptor(sock);
+        m_remoteIp = peerAddress().toString().remove(QString("::ffff:"));
+    }
+
     connect(this, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(socketError(QAbstractSocket::SocketError)));
     connect(this, &QIODevice::readyRead, this, &TcpSocket::recvData);
 }
@@ -14,6 +21,7 @@ TcpSocket::TcpSocket(qintptr sock, QTcpSocket * parent) : QTcpSocket (parent)
 void TcpSocket::recvData()
 {
     TcpSocket * psock = qobject_cast<TcpSocket *>(sender());
+    qDebug() << ">>> tcp socket thread->" << this->thread()->currentThread();
     //psock->m_remoteIp.toLatin1()
     emit hasGetData(psock->readAll());
 }
@@ -32,6 +40,11 @@ void TcpSocket::sendData(QByteArray data, QString ip)
     if ( ip == BROADCAST || ip == m_remoteIp )   write(data);
 }
 
+void TcpSocket::sendClienData(QByteArray buf)
+{
+    write(buf);
+}
+
 /* active check ip then close socket */
 void TcpSocket::closeSocket(QString ip)
 {
@@ -40,9 +53,31 @@ void TcpSocket::closeSocket(QString ip)
         emit this->disconnected();
         //close();
         //qDebug() << ip << "state: " << state();
+        qDebug()  << ">>> close socket thread->" << this->thread()->currentThread();
     }
 }
 
+void TcpSocket::startClient(const QString ip, const int port)
+{
+    this->connectToHost(QHostAddress(ip), quint16(port));
+
+    if ( this->waitForConnected(3000) )
+    {
+        qDebug() << "client connect success :thread->" << QThread::currentThread();
+        is_tcp_open = 1;
+    }
+    else
+    {
+        is_tcp_open = -1;
+    }
+}
+
+void TcpSocket::closeClient()
+{
+    //
+    abort();
+    is_tcp_open = -1;
+}
 
 
 
@@ -70,6 +105,9 @@ void TcpServer::startServer(const QString ip, const int port)
     if ( ip == BROADCAST )  listen(QHostAddress::Any, quint16(port));
     else                    listen(QHostAddress(ip), quint16(port));
     qDebug() << "startServer :: " << isListening();
+    qDebug() << ">>> tcp server thread-> " << this->thread()->currentThread();
+    if ( isListening() )    is_tcp_open = 1;
+    else                    is_tcp_open = -1;
 }
 
 /* delete all socket then close server */
@@ -82,8 +120,21 @@ void TcpServer::stopServer()
     }
     else
     {
-        m_deleteSock(BROADCAST);
+        emit m_deleteSock(BROADCAST);
+
+        m_map.clear();
+        this->thread()->msleep(100);
+        qDebug() << ">>> stop tcp server thread->" << this->thread()->currentThread();
+        close();
+
     }
+
+    if ( isListening() )
+    {
+        is_tcp_open = 1;
+        qDebug() << ">>> still listening.";
+    }
+    else    is_tcp_open = -1;
 }
 
 void TcpServer::getData(QByteArray data)
@@ -95,10 +146,19 @@ void TcpServer::getData(QByteArray data)
 void TcpServer::alterLink()
 {
     TcpSocket * psock = qobject_cast<TcpSocket *>(sender());
-    //qDebug() << "Private Slot:: alterLink remove Ip -->> " <<  m_map.key(psock);
+    qDebug() << "Private Slot:: alterLink remove Ip -->> " <<  m_map.key(psock);
+    if ( m_map.key(psock) == NULL )
+    {
+        delete psock;
+        return;
+    }
     m_map.remove(m_map.key(psock));
     delete psock;
     emit hasAlterLink(m_map.keys());
+}
+void TcpServer::sendData(QByteArray buf)
+{
+    emit m_sendData(buf, BROADCAST);
 }
 
 void TcpServer::incomingConnection(qintptr socketDesc)
