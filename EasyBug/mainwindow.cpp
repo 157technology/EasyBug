@@ -217,6 +217,10 @@ void MainWindow::showPlotData(const QByteArray buf)
 void MainWindow::plot(QVector<float> datalist)
 {
     double data[10];
+    static QTime mtime;
+    static bool flag = true;
+
+
 
     for ( int i = 0; i < datalist.size(); i ++ )
         data[i] = datalist.at(i);
@@ -239,7 +243,24 @@ void MainWindow::plot(QVector<float> datalist)
     mTag1->setText(QString::number(graph1Value, 'f', 2));
     mTag2->setText(QString::number(graph2Value, 'f', 2));
 
+
     mPlot->replot();
+
+    /*
+    if ( flag )
+    {
+        mtime.start();
+
+        flag = false;
+    }
+    else {
+        if ( mtime.elapsed() >= 100 )
+        {
+            mtime.restart();
+            mPlot->replot();
+        }
+    }
+    */
 }
 
 void MainWindow::showSerialData(const QByteArray buf)
@@ -531,7 +552,7 @@ void MainWindow::on_PB_PlotStart_clicked()
     {
         if ( flag == false )
         {
-            emit startSerial(115200, ui->CB_Plot->currentText());
+            emit startSerial(1152000, ui->CB_Plot->currentText());
             connect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
             connect(m_serial, &SerialPort::hasGetData, this, &MainWindow::showPlotData);
             flag = true;
