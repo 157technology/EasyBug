@@ -24,14 +24,14 @@ public:
 
 public slots:
     void showTcpData(const QByteArray buf);
-
     void showSerialData(const QByteArray buf);
-
+    void showPlotData(const QByteArray buf);
 
 private slots:
     void alterLink(QStringList iplist);
     void alterPorts(QStringList ports);
 
+    void plot(QVector<float> datalist);
 
     void on_PB_TCPopen_clicked();
     void on_PB_ClearTCPshow_clicked();
@@ -45,6 +45,8 @@ private slots:
     void on_PB_Seralsend_clicked();
 
 signals:
+    void splot(QVector<float> datalist);
+
     void startSerial(qint32 baud, QString port);
     void stopSeial();
     void sendSerial(const QByteArray buf);
@@ -55,6 +57,8 @@ signals:
 
 private slots:
   void timerSlot();
+
+  void on_PB_PlotStart_clicked();
 
 private:
     Ui::MainWindow * ui;

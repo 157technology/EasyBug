@@ -19,6 +19,8 @@ MainWindow::MainWindow(QWidget *parent) :
     //connect(this, &MainWindow::startServer, m_communicate->tcpServer, &TcpServer::startServer);// stop server
     qDebug() << "MainWindow Thread: " << QThread::currentThread();
 
+    connect(this, &MainWindow::splot, this, &MainWindow::plot);
+
     m_net_mode_list = new QStringList({"Tcp Server","Tcp Client","Udp Server","Tcp Client"});
 
     /*
@@ -54,11 +56,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     /* about serial */
+    connect(m_serial, &SerialPort::hasNewPort, this, &MainWindow::alterPorts);
     connect(this, &MainWindow::startSerial, m_serial, &SerialPort::startBind);
     connect(this, &MainWindow::stopSeial, m_serial, &SerialPort::closePort);
-    connect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
-    connect(m_serial, &SerialPort::hasNewPort, this, &MainWindow::alterPorts);
-    connect(m_serial, &SerialPort::hasGetData, this, &MainWindow::showSerialData);
 
 
     /* about tcp server */
@@ -86,18 +86,21 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // set some basic customPlot config:
     mPlot = ui->plot;
-    mPlot->yAxis->setTickLabels(false);
+    mPlot->yAxis->setTickLabels(true);
+    mPlot->yAxis2->setTickLabels(true);
     connect(mPlot->yAxis2, SIGNAL(rangeChanged(QCPRange)), mPlot->yAxis, SLOT(setRange(QCPRange))); // left axis only mirrors inner right axis
     mPlot->yAxis2->setVisible(true);
     mPlot->yAxis2->setRange(-10, 10);
     mPlot->axisRect()->addAxis(QCPAxis::atRight);
-    mPlot->axisRect()->axis(QCPAxis::atRight, 0)->setPadding(30); // add some padding to have space for tags
-    mPlot->axisRect()->axis(QCPAxis::atRight, 1)->setPadding(30); // add some padding to have space for tags
+    mPlot->axisRect()->axis(QCPAxis::atRight, 0)->setPadding(40); // add some padding to have space for tags
+    mPlot->axisRect()->axis(QCPAxis::atRight, 1)->setPadding(40); // add some padding to have space for tags
     mGraph1 = mPlot->addGraph(mPlot->xAxis, mPlot->axisRect()->axis(QCPAxis::atRight, 0));
     mGraph2 = mPlot->addGraph(mPlot->xAxis, mPlot->axisRect()->axis(QCPAxis::atRight, 1));
 
-    mPlot->axisRect()->axis(QCPAxis::atRight,0)->setRange(-5, 5);
-    mPlot->axisRect()->axis(QCPAxis::atRight,1)->setRange(-5, 5);
+    connect(mPlot->yAxis, SIGNAL(rangeChanged(QCPRange)), mPlot->axisRect()->axis(QCPAxis::atRight, 0), SLOT(setRange(QCPRange)));
+    connect(mPlot->yAxis, SIGNAL(rangeChanged(QCPRange)), mPlot->axisRect()->axis(QCPAxis::atRight, 1), SLOT(setRange(QCPRange)));
+    //mPlot->axisRect()->axis(QCPAxis::atRight,0)->setRange(-3, 3);
+    mPlot->axisRect()->axis(QCPAxis::atRight,1)->setRange(mPlot->yAxis2->range());
 
     mGraph1->setPen(QPen(QColor(250, 120, 0)));
     mGraph2->setPen(QPen(QColor(0, 180, 60)));
@@ -107,13 +110,13 @@ MainWindow::MainWindow(QWidget *parent) :
     mTag2 = new AxisTag(mGraph2->valueAxis());
     mTag2->setPen(mGraph2->pen());
 
-    ui->plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom |  QCP::iSelectPlottables);
+    ui->plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom |  QCP::iSelectPlottables | QCP::iSelectAxes);
     ui->plot->axisRect()->setupFullAxesBox();
     ui->plot->rescaleAxes();
 
 
-    connect(&mDataTimer, SIGNAL(timeout()), this, SLOT(timerSlot()));
-    mDataTimer.start(40);
+    //connect(&mDataTimer, SIGNAL(timeout()), this, SLOT(timerSlot()));
+    //mDataTimer.start(40);
 }
 
 MainWindow::~MainWindow()
@@ -131,7 +134,7 @@ void MainWindow::timerSlot()
   mPlot->xAxis->rescale();
   //mGraph1->rescaleValueAxis(false, true);
   //mGraph2->rescaleValueAxis(false, true);
-  mPlot->xAxis->setRange(mPlot->xAxis->range().upper, 1200, Qt::AlignRight);
+  mPlot->xAxis->setRange(mPlot->xAxis->range().upper, 1500, Qt::AlignRight);
 
   // update the vertical axis tag positions and texts to match the rightmost data point of the graphs:
   double graph1Value = mGraph1->dataMainValue(mGraph1->dataCount()-1);
@@ -144,6 +147,101 @@ void MainWindow::timerSlot()
   mPlot->replot();
 }
 
+
+void MainWindow::showPlotData(const QByteArray buf)
+{
+    static QByteArray mbuf;
+    static QTime mtime;
+    static bool first = true;
+    QVector<float> plotdata;
+    if ( first )
+    {
+        mtime.start();
+        first = false;
+    }
+
+    mbuf += buf;
+    if ( mtime.elapsed() >= 2 && mbuf.size()>=4 )
+    {
+        int begin = -1;
+        int end = -1;
+
+
+
+        begin = mbuf.indexOf("[[");
+        end   = mbuf.indexOf("]]", begin + 2);
+        plotdata.clear();
+        while ( begin != -1 && end != -1 )
+        {
+            //qDebug() << mbuf;
+            //qDebug() << "[" << begin << "," << end << "]";
+            char * s;
+            float * f;
+            QByteArray temp = mbuf.left(end);temp = temp.remove(0, begin+2);
+            //qDebug() << temp << temp.size();
+
+            mbuf = mbuf.right(mbuf.size()-end-2);
+            //qDebug() << ">>> " << mbuf;
+            s = temp.data();
+            f = (float*)s;
+
+            qDebug() << s;
+            qDebug() << f[0] << f[1] << f[2] ;
+            plotdata.append(f[0]);
+            plotdata.append(f[1]);
+
+            emit splot(plotdata);
+
+            begin = end = -1;
+            begin = mbuf.indexOf("[[");
+            end = mbuf.indexOf("]]", begin+2);
+
+        }
+
+
+        //qDebug() << ">>> " << begin << "--" << end;
+        if ( begin == -1 )
+        {
+            qDebug() << ">>> " << mbuf;
+            if (mbuf != "") qDebug() << "ERROR";
+            mbuf.clear();
+            //qDebug() << "no begin";
+        }
+        else
+        {
+            //qDebug() << "NULL";
+        }
+    }
+}
+
+void MainWindow::plot(QVector<float> datalist)
+{
+    double data[10];
+
+    for ( int i = 0; i < datalist.size(); i ++ )
+        data[i] = datalist.at(i);
+
+    // calculate and add a new data point to each graph:
+    mGraph1->addData(mGraph1->dataCount(), data[0]);//qSin(mGraph1->dataCount()/50.0)+qSin(mGraph1->dataCount()/50.0/0.3843)*0.25);
+    mGraph2->addData(mGraph2->dataCount(), data[1]);//qCos(mGraph2->dataCount()/50.0)+qSin(mGraph2->dataCount()/50.0/0.4364)*0.15);
+
+    // make key axis range scroll with the data:
+    mPlot->xAxis->rescale();
+    //mGraph1->rescaleValueAxis(false, true);
+    //mGraph2->rescaleValueAxis(false, true);
+    mPlot->xAxis->setRange(mPlot->xAxis->range().upper, 1500, Qt::AlignRight);
+
+    // update the vertical axis tag positions and texts to match the rightmost data point of the graphs:
+    double graph1Value = mGraph1->dataMainValue(mGraph1->dataCount()-1);
+    double graph2Value = mGraph2->dataMainValue(mGraph2->dataCount()-1);
+    mTag1->updatePosition(graph1Value);
+    mTag2->updatePosition(graph2Value);
+    mTag1->setText(QString::number(graph1Value, 'f', 2));
+    mTag2->setText(QString::number(graph2Value, 'f', 2));
+
+    mPlot->replot();
+}
+
 void MainWindow::showSerialData(const QByteArray buf)
 {
     ui->TB_Serialshow->insertPlainText(QString::fromLocal8Bit(buf));
@@ -154,6 +252,9 @@ void MainWindow::alterPorts(QStringList ports)
     qDebug() << "ports change";
     ui->CB_Serial->clear();
     ui->CB_Serial->addItems(ports);
+
+    ui->CB_Plot->clear();
+    ui->CB_Plot->addItems(ports);
 
     //
     //m_communicate->serial->startBind(115200, ports.at(0));
@@ -341,7 +442,7 @@ void MainWindow::on_PB_Serialopen_clicked()
     is_serial_open = 0;
     if ( flag == false )
     {
-        emit startSerial(115200, ui->CB_Serial->currentText());
+        emit startSerial(1152000, ui->CB_Serial->currentText());
     }
     else
     {
@@ -361,6 +462,11 @@ void MainWindow::on_PB_Serialopen_clicked()
         if ( is_serial_open == 1 )
         {
             qDebug() << "Serial Open Success";
+
+
+            connect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
+            connect(m_serial, &SerialPort::hasGetData, this, &MainWindow::showSerialData);
+
             flag = true;
             ui->PB_Serialopen->setText("stop");
 
@@ -378,6 +484,9 @@ void MainWindow::on_PB_Serialopen_clicked()
         if ( is_serial_open == -1 )
         {
             qDebug() << "Serial close Success";
+            disconnect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
+            disconnect(m_serial, &SerialPort::hasGetData, this, &MainWindow::showSerialData);
+
             flag = false;
             ui->PB_Serialopen->setText("start");
             ui->CB_Serial->setEnabled(true);
@@ -409,4 +518,31 @@ void MainWindow::on_PB_ClearSerialinput_clicked()
 void MainWindow::on_PB_Seralsend_clicked()
 {
     emit sendSerial(ui->TE_Serialedit->toPlainText().toLocal8Bit());
+}
+
+void MainWindow::on_PB_PlotStart_clicked()
+{
+    static bool flag = false;
+    if ( ui->PB_Serialopen->text() == "stop" )
+    {
+        QMessageBox::warning(NULL, "warning", "Already Connect");
+    }
+    else
+    {
+        if ( flag == false )
+        {
+            emit startSerial(115200, ui->CB_Plot->currentText());
+            connect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
+            connect(m_serial, &SerialPort::hasGetData, this, &MainWindow::showPlotData);
+            flag = true;
+        }
+        else
+        {
+            emit stopSeial();
+            disconnect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
+            disconnect(m_serial, &SerialPort::hasGetData, this, &MainWindow::showPlotData);
+            flag = false;
+        }
+
+    }
 }

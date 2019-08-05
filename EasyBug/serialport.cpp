@@ -87,7 +87,7 @@ void SerialPort::searchPort()
 
 void SerialPort::loadData()
 {
-    qDebug() << "Serial Rec: " << QThread::currentThread();
+    //qDebug() << "Serial Rec: " << QThread::currentThread();
     emit hasGetData(this->readAll());
 }
 
