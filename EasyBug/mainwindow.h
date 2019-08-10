@@ -25,13 +25,13 @@ public:
 public slots:
     void showTcpData(const QByteArray buf);
     void showSerialData(const QByteArray buf);
-    void showPlotData(const QByteArray buf);
+    void showPlotData(const QVector<float> data);
 
 private slots:
     void alterLink(QStringList iplist);
     void alterPorts(QStringList ports);
 
-    void plot(QVector<float> datalist);
+
 
     void on_PB_TCPopen_clicked();
     void on_PB_ClearTCPshow_clicked();

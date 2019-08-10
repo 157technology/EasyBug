@@ -20,6 +20,7 @@ public slots:
     void startBind(qint32 baud, QString port);
     void closePort();
     void sendData(QByteArray data);
+    void CnvPlotData(const QByteArray data);
 
 private slots:
     void loadData();
@@ -28,7 +29,7 @@ private slots:
 signals:
     void hasGetData(const QByteArray data);
     void hasNewPort(const QStringList portlist);
-
+    void hasPlotData(const QVector<float> data);
 
 public:
     QTimer m_timer; //通过定时器来实时扫描端口号

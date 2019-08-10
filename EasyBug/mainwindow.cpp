@@ -1,9 +1,12 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QMetaType>
 
 
 int is_serial_open;
 int is_tcp_open;
+
+
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -18,8 +21,7 @@ MainWindow::MainWindow(QWidget *parent) :
     //connect(this, &MainWindow::stopServer, m_communicate->tcpServer, &TcpServer::stopServer);  // start server
     //connect(this, &MainWindow::startServer, m_communicate->tcpServer, &TcpServer::startServer);// stop server
     qDebug() << "MainWindow Thread: " << QThread::currentThread();
-
-    connect(this, &MainWindow::splot, this, &MainWindow::plot);
+    qRegisterMetaType<QVector<float>>("QVector<float>");
 
     m_net_mode_list = new QStringList({"Tcp Server","Tcp Client","Udp Server","Tcp Client"});
 
@@ -148,73 +150,7 @@ void MainWindow::timerSlot()
 }
 
 
-void MainWindow::showPlotData(const QByteArray buf)
-{
-    static QByteArray mbuf;
-    static QTime mtime;
-    static bool first = true;
-    QVector<float> plotdata;
-    if ( first )
-    {
-        mtime.start();
-        first = false;
-    }
-
-    mbuf += buf;
-    if ( mtime.elapsed() >= 2 && mbuf.size()>=4 )
-    {
-        int begin = -1;
-        int end = -1;
-
-
-
-        begin = mbuf.indexOf("[[");
-        end   = mbuf.indexOf("]]", begin + 2);
-        plotdata.clear();
-        while ( begin != -1 && end != -1 )
-        {
-            //qDebug() << mbuf;
-            //qDebug() << "[" << begin << "," << end << "]";
-            char * s;
-            float * f;
-            QByteArray temp = mbuf.left(end);temp = temp.remove(0, begin+2);
-            //qDebug() << temp << temp.size();
-
-            mbuf = mbuf.right(mbuf.size()-end-2);
-            //qDebug() << ">>> " << mbuf;
-            s = temp.data();
-            f = (float*)s;
-
-            qDebug() << s;
-            qDebug() << f[0] << f[1] << f[2] ;
-            plotdata.append(f[0]);
-            plotdata.append(f[1]);
-
-            emit splot(plotdata);
-
-            begin = end = -1;
-            begin = mbuf.indexOf("[[");
-            end = mbuf.indexOf("]]", begin+2);
-
-        }
-
-
-        //qDebug() << ">>> " << begin << "--" << end;
-        if ( begin == -1 )
-        {
-            qDebug() << ">>> " << mbuf;
-            if (mbuf != "") qDebug() << "ERROR";
-            mbuf.clear();
-            //qDebug() << "no begin";
-        }
-        else
-        {
-            //qDebug() << "NULL";
-        }
-    }
-}
-
-void MainWindow::plot(QVector<float> datalist)
+void MainWindow::showPlotData(const QVector<float> datalist)
 {
     double data[10];
     static QTime mtime;
@@ -233,7 +169,7 @@ void MainWindow::plot(QVector<float> datalist)
     mPlot->xAxis->rescale();
     //mGraph1->rescaleValueAxis(false, true);
     //mGraph2->rescaleValueAxis(false, true);
-    mPlot->xAxis->setRange(mPlot->xAxis->range().upper, 1500, Qt::AlignRight);
+    mPlot->xAxis->setRange(mPlot->xAxis->range().upper, 500, Qt::AlignRight);
 
     // update the vertical axis tag positions and texts to match the rightmost data point of the graphs:
     double graph1Value = mGraph1->dataMainValue(mGraph1->dataCount()-1);
@@ -244,24 +180,26 @@ void MainWindow::plot(QVector<float> datalist)
     mTag2->setText(QString::number(graph2Value, 'f', 2));
 
 
-    mPlot->replot();
+    //mPlot->replot();
 
-    /*
+
     if ( flag )
     {
         mtime.start();
 
         flag = false;
+
+        mPlot->replot();
     }
     else {
-        if ( mtime.elapsed() >= 100 )
+        if ( mtime.elapsed() >= 10 )
         {
             mtime.restart();
             mPlot->replot();
         }
     }
-    */
 }
+
 
 void MainWindow::showSerialData(const QByteArray buf)
 {
@@ -406,6 +344,7 @@ void MainWindow::on_PB_TCPopen_clicked()
                 disconnect(this, &MainWindow::startTcpServer, m_tcp_client, &TcpSocket::startClient);
                 disconnect(this, &MainWindow::sendTcpData, m_tcp_client, &TcpSocket::sendClienData);
                 disconnect(m_tcp_client, &TcpSocket::hasGetData, this, &MainWindow::showTcpData);
+
 
                 qDebug() << "stop tcp client:thread->" << this->thread()->currentThread();
             }
@@ -554,14 +493,16 @@ void MainWindow::on_PB_PlotStart_clicked()
         {
             emit startSerial(1152000, ui->CB_Plot->currentText());
             connect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
-            connect(m_serial, &SerialPort::hasGetData, this, &MainWindow::showPlotData);
+            connect(m_serial, &SerialPort::hasGetData, m_serial, &SerialPort::CnvPlotData);
+            connect(m_serial, &SerialPort::hasPlotData, this, &MainWindow::showPlotData);
             flag = true;
         }
         else
         {
             emit stopSeial();
             disconnect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
-            disconnect(m_serial, &SerialPort::hasGetData, this, &MainWindow::showPlotData);
+            disconnect(m_serial, &SerialPort::hasGetData, m_serial, &SerialPort::CnvPlotData);
+            disconnect(m_serial, &SerialPort::hasPlotData, this, &MainWindow::showPlotData);
             flag = false;
         }
 
