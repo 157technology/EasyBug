@@ -8,6 +8,7 @@
 #include "axistag.h"
 #include "mynetwork.h"
 #include "qcustomplot.h"
+#include "analysisdata.h"
 #include "QTimer"
 
 namespace Ui {
@@ -66,6 +67,7 @@ private:
     TcpSocket * m_tcp_client;
     TcpServer * m_tcp_server;
     SerialPort * m_serial;
+    AnalysisData * m_analysis;
 
     QStringList * m_net_mode_list;
 

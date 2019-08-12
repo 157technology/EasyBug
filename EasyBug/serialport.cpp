@@ -32,9 +32,12 @@ void SerialPort::startBind(qint32 baud, QString port)
         qDebug() << "Serial Bind: " << QThread::currentThread();
         this->m_timer.stop();
         disconnect(&this->m_timer, &QTimer::timeout, this, &SerialPort::searchPort);
-        connect(this, &QIODevice::readyRead, this, &SerialPort::loadData);
+
         //return true;
         is_serial_open = 1;
+        connect(this, &QIODevice::readyRead, this, &SerialPort::loadData);
+
+        qDebug() << "Serial <<< " ;
     }
     else
     {
@@ -100,8 +103,8 @@ void SerialPort::CnvPlotData(const QByteArray buf)
             s = temp.data();
             f = (float*)s;
 
-            //qDebug() << s;
-            //qDebug() << f[0] << f[1] << f[2] ;
+            qDebug() << s;
+            qDebug() << f[0] << f[1] << f[2] ;
             plotdata.append(f[0]);
             plotdata.append(f[1]);
 

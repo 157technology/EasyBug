@@ -37,12 +37,14 @@ MainWindow::MainWindow(QWidget *parent) :
     m_serial = new SerialPort;
     m_tcp_server = new TcpServer;
     m_tcp_client = new TcpSocket(0);
+    m_analysis   = new AnalysisData;
 
     m_tcp_client->abort();
 
     QThread * thread_serial = new QThread(m_serial);
     QThread * thread_tcp_server = new QThread(m_tcp_server);
     QThread * thread_tcp_client = new QThread(m_tcp_client);
+    QThread * thread_analysis = new QThread(m_analysis);
 
     // move to a thread
     m_serial->moveToThread(thread_serial);
@@ -55,7 +57,8 @@ MainWindow::MainWindow(QWidget *parent) :
     m_tcp_client->moveToThread(thread_tcp_client);
     thread_tcp_client->start();
 
-
+    m_analysis->moveToThread(thread_analysis);
+    thread_analysis->start();
 
     /* about serial */
     connect(m_serial, &SerialPort::hasNewPort, this, &MainWindow::alterPorts);
@@ -152,16 +155,23 @@ void MainWindow::timerSlot()
 
 void MainWindow::showPlotData(const QVector<float> datalist)
 {
-    double data[10];
+    float data[10];
     static QTime mtime;
     static bool flag = true;
 
 
+    //qDebug() << "in--->>";
 
-    for ( int i = 0; i < datalist.size(); i ++ )
+    if ( datalist.size() != 2 )
+    {
+        qDebug() << datalist;
+    }
+
+    for ( int i = 0; i < 2; i ++ )
         data[i] = datalist.at(i);
-
+    //qDebug() << "in plot data" << data[0] << data[1];
     // calculate and add a new data point to each graph:
+
     mGraph1->addData(mGraph1->dataCount(), data[0]);//qSin(mGraph1->dataCount()/50.0)+qSin(mGraph1->dataCount()/50.0/0.3843)*0.25);
     mGraph2->addData(mGraph2->dataCount(), data[1]);//qCos(mGraph2->dataCount()/50.0)+qSin(mGraph2->dataCount()/50.0/0.4364)*0.15);
 
@@ -169,7 +179,7 @@ void MainWindow::showPlotData(const QVector<float> datalist)
     mPlot->xAxis->rescale();
     //mGraph1->rescaleValueAxis(false, true);
     //mGraph2->rescaleValueAxis(false, true);
-    mPlot->xAxis->setRange(mPlot->xAxis->range().upper, 500, Qt::AlignRight);
+    mPlot->xAxis->setRange(mPlot->xAxis->range().upper, 1000, Qt::AlignRight);
 
     // update the vertical axis tag positions and texts to match the rightmost data point of the graphs:
     double graph1Value = mGraph1->dataMainValue(mGraph1->dataCount()-1);
@@ -179,7 +189,7 @@ void MainWindow::showPlotData(const QVector<float> datalist)
     mTag1->setText(QString::number(graph1Value, 'f', 2));
     mTag2->setText(QString::number(graph2Value, 'f', 2));
 
-
+    //qDebug() << "out---<<";
     //mPlot->replot();
 
 
@@ -198,6 +208,7 @@ void MainWindow::showPlotData(const QVector<float> datalist)
             mPlot->replot();
         }
     }
+
 }
 
 
@@ -491,18 +502,30 @@ void MainWindow::on_PB_PlotStart_clicked()
     {
         if ( flag == false )
         {
+            is_serial_open = 0;
+            qDebug() << "sss>>>";
+
             emit startSerial(1152000, ui->CB_Plot->currentText());
-            connect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
-            connect(m_serial, &SerialPort::hasGetData, m_serial, &SerialPort::CnvPlotData);
-            connect(m_serial, &SerialPort::hasPlotData, this, &MainWindow::showPlotData);
+
+            while ( is_serial_open != 0 )
+            {
+                qDebug() << "over>>>";
+            }
+
+            //connect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
+            connect(m_serial, &SerialPort::hasGetData, m_analysis, &AnalysisData::cvtPlotData);
+            connect(m_analysis, &AnalysisData::hasPlotData, this, &MainWindow::showPlotData);
+
+
+
             flag = true;
         }
         else
         {
             emit stopSeial();
             disconnect(this, &MainWindow::sendSerial, m_serial, &SerialPort::sendData);
-            disconnect(m_serial, &SerialPort::hasGetData, m_serial, &SerialPort::CnvPlotData);
-            disconnect(m_serial, &SerialPort::hasPlotData, this, &MainWindow::showPlotData);
+            disconnect(m_serial, &SerialPort::hasGetData, m_analysis, &AnalysisData::cvtPlotData);
+            disconnect(m_analysis, &AnalysisData::hasPlotData, this, &MainWindow::showPlotData);
             flag = false;
         }
 
