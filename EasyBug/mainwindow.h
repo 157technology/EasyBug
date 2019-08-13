@@ -72,8 +72,7 @@ private:
     QStringList * m_net_mode_list;
 
     QCustomPlot *mPlot;
-    QPointer<QCPGraph> mGraph1;
-    QPointer<QCPGraph> mGraph2;
+    QPointer<QCPGraph> mGraph[10];
     AxisTag *mTag1;
     AxisTag *mTag2;
     QTimer mDataTimer;

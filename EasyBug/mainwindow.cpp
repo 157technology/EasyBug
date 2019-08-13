@@ -5,6 +5,7 @@
 
 int is_serial_open;
 int is_tcp_open;
+int g_plot_count = 0;
 
 
 
@@ -99,21 +100,34 @@ MainWindow::MainWindow(QWidget *parent) :
     mPlot->axisRect()->addAxis(QCPAxis::atRight);
     mPlot->axisRect()->axis(QCPAxis::atRight, 0)->setPadding(40); // add some padding to have space for tags
     mPlot->axisRect()->axis(QCPAxis::atRight, 1)->setPadding(40); // add some padding to have space for tags
-    mGraph1 = mPlot->addGraph(mPlot->xAxis, mPlot->axisRect()->axis(QCPAxis::atRight, 0));
-    mGraph2 = mPlot->addGraph(mPlot->xAxis, mPlot->axisRect()->axis(QCPAxis::atRight, 1));
+    mGraph[0] = mPlot->addGraph(mPlot->xAxis, mPlot->axisRect()->axis(QCPAxis::atRight, 0));
+    mGraph[1] = mPlot->addGraph(mPlot->xAxis, mPlot->axisRect()->axis(QCPAxis::atRight, 1));
+    mGraph[2] = mPlot->addGraph();
+    mGraph[3] = mPlot->addGraph();
+    mGraph[4] = mPlot->addGraph();
+    mGraph[5] = mPlot->addGraph();
+    mGraph[6] = mPlot->addGraph();
+    mGraph[7] = mPlot->addGraph();
 
     connect(mPlot->yAxis, SIGNAL(rangeChanged(QCPRange)), mPlot->axisRect()->axis(QCPAxis::atRight, 0), SLOT(setRange(QCPRange)));
     connect(mPlot->yAxis, SIGNAL(rangeChanged(QCPRange)), mPlot->axisRect()->axis(QCPAxis::atRight, 1), SLOT(setRange(QCPRange)));
     //mPlot->axisRect()->axis(QCPAxis::atRight,0)->setRange(-3, 3);
     mPlot->axisRect()->axis(QCPAxis::atRight,1)->setRange(mPlot->yAxis2->range());
 
-    mGraph1->setPen(QPen(QColor(250, 120, 0)));
-    mGraph2->setPen(QPen(QColor(0, 180, 60)));
+    mGraph[0]->setPen(QPen(QColor(250, 120, 0)));
+    mGraph[1]->setPen(QPen(QColor(0, 180, 60)));
+    mGraph[2]->setPen(QPen(QColor(0, 80, 60)));
+    mGraph[3]->setPen(QPen(QColor(100, 0, 60)));
+    mGraph[4]->setPen(QPen(QColor(250, 90, 60)));
+    mGraph[5]->setPen(QPen(QColor(0, 0, 60)));
+    mGraph[6]->setPen(QPen(QColor(60, 180, 60)));
+    mGraph[7]->setPen(QPen(QColor(0, 20, 0)));
 
-    mTag1 = new AxisTag(mGraph1->valueAxis());
-    mTag1->setPen(mGraph1->pen());
-    mTag2 = new AxisTag(mGraph2->valueAxis());
-    mTag2->setPen(mGraph2->pen());
+
+    mTag1 = new AxisTag(mGraph[0]->valueAxis());
+    mTag1->setPen(mGraph[0]->pen());
+    mTag2 = new AxisTag(mGraph[1]->valueAxis());
+    mTag2->setPen(mGraph[1]->pen());
 
     ui->plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom |  QCP::iSelectPlottables | QCP::iSelectAxes);
     ui->plot->axisRect()->setupFullAxesBox();
@@ -132,8 +146,8 @@ MainWindow::~MainWindow()
 void MainWindow::timerSlot()
 {
   // calculate and add a new data point to each graph:
-  mGraph1->addData(mGraph1->dataCount(), qSin(mGraph1->dataCount()/50.0)+qSin(mGraph1->dataCount()/50.0/0.3843)*0.25);
-  mGraph2->addData(mGraph2->dataCount(), qCos(mGraph2->dataCount()/50.0)+qSin(mGraph2->dataCount()/50.0/0.4364)*0.15);
+  mGraph[0]->addData(mGraph[0]->dataCount(), qSin(mGraph[0]->dataCount()/50.0)+qSin(mGraph[0]->dataCount()/50.0/0.3843)*0.25);
+  mGraph[1]->addData(mGraph[1]->dataCount(), qCos(mGraph[1]->dataCount()/50.0)+qSin(mGraph[1]->dataCount()/50.0/0.4364)*0.15);
 
   // make key axis range scroll with the data:
   mPlot->xAxis->rescale();
@@ -142,8 +156,8 @@ void MainWindow::timerSlot()
   mPlot->xAxis->setRange(mPlot->xAxis->range().upper, 1500, Qt::AlignRight);
 
   // update the vertical axis tag positions and texts to match the rightmost data point of the graphs:
-  double graph1Value = mGraph1->dataMainValue(mGraph1->dataCount()-1);
-  double graph2Value = mGraph2->dataMainValue(mGraph2->dataCount()-1);
+  double graph1Value = mGraph[0]->dataMainValue(mGraph[0]->dataCount()-1);
+  double graph2Value = mGraph[1]->dataMainValue(mGraph[1]->dataCount()-1);
   mTag1->updatePosition(graph1Value);
   mTag2->updatePosition(graph2Value);
   mTag1->setText(QString::number(graph1Value, 'f', 2));
@@ -155,25 +169,28 @@ void MainWindow::timerSlot()
 
 void MainWindow::showPlotData(const QVector<float> datalist)
 {
-    float data[10];
     static QTime mtime;
     static bool flag = true;
 
 
     //qDebug() << "in--->>";
 
-    if ( datalist.size() != 2 )
+    if ( datalist.size() != 6 )
     {
         qDebug() << datalist;
+        return;
     }
 
-    for ( int i = 0; i < 2; i ++ )
-        data[i] = datalist.at(i);
     //qDebug() << "in plot data" << data[0] << data[1];
     // calculate and add a new data point to each graph:
 
-    mGraph1->addData(mGraph1->dataCount(), data[0]);//qSin(mGraph1->dataCount()/50.0)+qSin(mGraph1->dataCount()/50.0/0.3843)*0.25);
-    mGraph2->addData(mGraph2->dataCount(), data[1]);//qCos(mGraph2->dataCount()/50.0)+qSin(mGraph2->dataCount()/50.0/0.4364)*0.15);
+    for ( int i = 0; i < g_plot_count; i ++ )
+    {
+        mGraph[i]->addData(mGraph[i]->dataCount(), datalist.at(i));
+    }
+
+    //qSin(mGraph1->dataCount()/50.0)+qSin(mGraph1->dataCount()/50.0/0.3843)*0.25);
+    //mGraph2->addData(mGraph2->dataCount(), data[1]);//qCos(mGraph2->dataCount()/50.0)+qSin(mGraph2->dataCount()/50.0/0.4364)*0.15);
 
     // make key axis range scroll with the data:
     mPlot->xAxis->rescale();
@@ -182,8 +199,8 @@ void MainWindow::showPlotData(const QVector<float> datalist)
     mPlot->xAxis->setRange(mPlot->xAxis->range().upper, 1000, Qt::AlignRight);
 
     // update the vertical axis tag positions and texts to match the rightmost data point of the graphs:
-    double graph1Value = mGraph1->dataMainValue(mGraph1->dataCount()-1);
-    double graph2Value = mGraph2->dataMainValue(mGraph2->dataCount()-1);
+    double graph1Value = mGraph[0]->dataMainValue(mGraph[0]->dataCount()-1);
+    double graph2Value = mGraph[1]->dataMainValue(mGraph[1]->dataCount()-1);
     mTag1->updatePosition(graph1Value);
     mTag2->updatePosition(graph2Value);
     mTag1->setText(QString::number(graph1Value, 'f', 2));

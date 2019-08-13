@@ -42,14 +42,21 @@ void AnalysisData::cvtPlotData(const QByteArray buf)
             //qDebug() << ">>> " << mbuf;
             s = temp.data();
             f = (float*)s;
-
+            if ( temp.size() != 24 )
+            {
+                qDebug() << "ERROR:" << temp.size();
+            }
             //qDebug() << s;
             //qDebug() << f[0] << f[1] << f[2] ;
-            plotdata.append(f[0]);
-            plotdata.append(f[1]);
-
+            extern int g_plot_count;
+            g_plot_count = temp.size() / 4;
+            //qDebug() << g_plot_count;
+            for ( int i = 0; i < g_plot_count; i ++ )
+            {
+                plotdata.append(f[i]);
+            }
             emit hasPlotData(plotdata);
-
+            plotdata.clear();
             begin = end = -1;
             begin = mbuf.indexOf("[[");
             end = mbuf.indexOf("]]", begin+2);
