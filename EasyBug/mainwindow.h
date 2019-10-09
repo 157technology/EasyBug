@@ -61,6 +61,10 @@ private slots:
 
   void on_PB_PlotStart_clicked();
 
+
+private:
+    int m_GetSerialBaud();
+
 private:
     Ui::MainWindow * ui;
 

@@ -9,6 +9,9 @@ int g_plot_count = 0;
 
 
 
+
+
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -427,10 +430,13 @@ void MainWindow::on_PB_TCPsend_clicked()
 void MainWindow::on_PB_Serialopen_clicked()
 {
     static bool flag = false;
+    int baud;
     is_serial_open = 0;
     if ( flag == false )
     {
-        emit startSerial(1152000, ui->CB_Serial->currentText());
+        baud = m_GetSerialBaud();
+        qDebug() << "baud == " << baud;
+        emit startSerial(baud, ui->CB_Serial->currentText());
     }
     else
     {
@@ -520,7 +526,10 @@ void MainWindow::on_PB_PlotStart_clicked()
         if ( flag == false )
         {
             is_serial_open = 0;
-            qDebug() << "sss>>>";
+
+            //if (  )
+
+            qDebug() << "sss>>>" << ui->LE_Serialbaud->text().toInt(nullptr);
 
             emit startSerial(1152000, ui->CB_Plot->currentText());
 
@@ -547,4 +556,19 @@ void MainWindow::on_PB_PlotStart_clicked()
         }
 
     }
+}
+
+
+int MainWindow::m_GetSerialBaud()
+{
+    int baud;
+    bool ok = false;
+    if ( ui->LE_Serialbaud->text() == nullptr )
+        baud = 115200;
+    else {
+        baud = ui->LE_Serialbaud->text().toInt(&ok);
+        if ( ok == false )  baud = -1;
+    }
+
+    return baud;
 }
